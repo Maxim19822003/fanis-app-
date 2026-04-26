@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Фанис - Техподдержка</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ЭКРАН ЗАГРУЗКИ -->
+    <div id="splash-screen" class="screen active">
+        <div class="splash-content">
+            <div class="robot-avatar">🤖</div>
+            <h1>ФАНИС</h1>
+            <p>Техническая поддержка</p>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ГЛАВНЫЙ ЭКРАН -->
+    <div id="home-screen" class="screen">
+        <div class="home-header">
+            <div class="robot-avatar-large">🤖</div>
+            <h1>Привет! Я — Фанис</h1>
+            <p class="subtitle">Помогу починить аппарат</p>
+        </div>
+
+        <div class="home-buttons">
+            <button class="main-btn btn-polomki" onclick="app.goTo('breakdowns')">
+                <span class="btn-icon">🔧</span>
+                <span class="btn-text">Поломки</span>
+                <span class="btn-desc">Поменять/починить</span>
+            </button>
+
+            <button class="main-btn btn-errors" onclick="app.goTo('systems')">
+                <span class="btn-icon">⚠️</span>
+                <span class="btn-text">Коды ошибок</span>
+                <span class="btn-desc">Аппарат в ошибке</span>
+            </button>
+        </div>
+
+        <div class="home-footer">
+            <button class="admin-toggle" onclick="app.toggleAdmin()">⚙️ Админ</button>
+        </div>
+    </div>
+
+    <!-- ЭКРАН ПОЛОМОК -->
+    <div id="breakdowns-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('home')">⬅️</button>
+            <h2>Поломки</h2>
+        </div>
+        <p class="screen-desc">Выбери что нужно починить</p>
+
+        <div id="breakdowns-grid" class="items-grid">
+            <!-- Заполняется из JS -->
+        </div>
+    </div>
+
+    <!-- ЭКРАН КАРТОЧКИ ПОЛОМКИ -->
+    <div id="breakdown-card-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goBack()">⬅️</button>
+            <h2 id="bd-card-title">Поломка</h2>
+        </div>
+
+        <div id="bd-card-content" class="card-content">
+            <!-- Заполняется из JS -->
+        </div>
+    </div>
+
+    <!-- ЭКРАН ВЫБОРА СИСТЕМЫ -->
+    <div id="systems-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('home')">⬅️</button>
+            <h2>Система аппарата</h2>
+        </div>
+        <p class="screen-desc">Выбери систему</p>
+
+        <div id="systems-grid" class="items-grid">
+            <!-- Заполняется из JS -->
+        </div>
+    </div>
+
+    <!-- ЭКРАН КОДОВ ОШИБОК -->
+    <div id="errors-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('systems')">⬅️</button>
+            <h2 id="errors-system-title">Коды ошибок</h2>
+        </div>
+        <p class="screen-desc">Выбери код или нажми Поломки</p>
+
+        <div id="errors-grid" class="items-grid errors-grid">
+            <!-- Заполняется из JS -->
+        </div>
+
+        <button class="secondary-btn" onclick="app.goTo('breakdowns')">🔧 Поломки</button>
+        <button class="secondary-btn" onclick="app.goTo('systems')">⬅️ Назад к выбору системы</button>
+    </div>
+
+    <!-- ЭКРАН КАРТОЧКИ ОШИБКИ -->
+    <div id="error-card-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goBack()">⬅️</button>
+            <h2 id="err-card-title">Ошибка</h2>
+        </div>
+
+        <div id="err-card-content" class="card-content">
+            <!-- Заполняется из JS -->
+        </div>
+    </div>
+
+    <!-- ============ АДМИНКА ============ -->
+
+    <!-- ЭКРАН ВХОДА В АДМИНКУ -->
+    <div id="admin-login-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('home')">⬅️</button>
+            <h2>Админка</h2>
+        </div>
+
+        <div class="admin-login-form">
+            <p>Введите пароль:</p>
+            <input type="password" id="admin-password" placeholder="Пароль" maxlength="20">
+            <button class="main-btn" onclick="app.checkAdminPassword()">Войти</button>
+            <p class="hint">Пароль по умолчанию: fanis2024</p>
+        </div>
+    </div>
+
+    <!-- ЭКРАН АДМИНКИ - ГЛАВНАЯ -->
+    <div id="admin-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('home')">⬅️</button>
+            <h2>⚙️ Админка</h2>
+        </div>
+
+        <div class="admin-menu">
+            <button class="admin-menu-btn" onclick="app.showAdminSection('breakdowns')">
+                <span>🔧 Поломки</span>
+                <span class="count" id="admin-bd-count">0</span>
+            </button>
+            <button class="admin-menu-btn" onclick="app.showAdminSection('errors')">
+                <span>⚠️ Коды ошибок</span>
+                <span class="count" id="admin-err-count">0</span>
+            </button>
+            <button class="admin-menu-btn" onclick="app.showAdminSection('contacts')">
+                <span>📞 Контакты</span>
+            </button>
+            <button class="admin-menu-btn export-btn" onclick="app.exportData()">
+                <span>💾 Экспорт данных</span>
+            </button>
+            <button class="admin-menu-btn import-btn" onclick="app.showImport()">
+                <span>📥 Импорт данных</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ЭКРАН АДМИНКА - ПОЛОМКИ -->
+    <div id="admin-breakdowns-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('admin')">⬅️</button>
+            <h2>🔧 Поломки</h2>
+            <button class="add-btn" onclick="app.editBreakdown()">➕</button>
+        </div>
+
+        <div id="admin-bd-list" class="admin-list">
+            <!-- Заполняется из JS -->
+        </div>
+    </div>
+
+    <!-- ЭКРАН РЕДАКТИРОВАНИЯ ПОЛОМКИ -->
+    <div id="admin-bd-edit-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('admin-breakdowns')">⬅️</button>
+            <h2 id="bd-edit-title">Новая поломка</h2>
+        </div>
+
+        <div class="edit-form">
+            <label>Название:</label>
+            <input type="text" id="bd-edit-name" placeholder="Монетник">
+
+            <label>Эмодзи:</label>
+            <input type="text" id="bd-edit-emoji" placeholder="💰" maxlength="5">
+
+            <label>Описание шагов (каждый шаг с новой строки):</label>
+            <textarea id="bd-edit-steps" rows="6" placeholder="- открутить два шурупа&#10;- отсоединить штекер&#10;- поставить новый"></textarea>
+
+            <label>Ссылка на видео (RuTube или VK):</label>
+            <input type="text" id="bd-edit-video" placeholder="https://rutube.ru/video/...">
+
+            <label>Ссылка на картинку/мем:</label>
+            <input type="text" id="bd-edit-image" placeholder="https://i.imgur.com/...">
+
+            <label>Доп. инфо ("фишка"):</label>
+            <textarea id="bd-edit-extra" rows="3" placeholder="Про фишку монетника..."></textarea>
+
+            <label>Контакт:</label>
+            <select id="bd-edit-contact">
+                <option value="fanis">Фанис</option>
+                <option value="vildan">Вильдан</option>
+            </select>
+
+            <label>Активно:</label>
+            <select id="bd-edit-active">
+                <option value="true">Да</option>
+                <option value="false">Нет</option>
+            </select>
+
+            <div class="edit-buttons">
+                <button class="save-btn" onclick="app.saveBreakdown()">💾 Сохранить</button>
+                <button class="delete-btn" id="bd-delete-btn" onclick="app.deleteBreakdown()">🗑️ Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН АДМИНКА - КОДЫ ОШИБОК -->
+    <div id="admin-errors-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('admin')">⬅️</button>
+            <h2>⚠️ Коды ошибок</h2>
+            <button class="add-btn" onclick="app.editError()">➕</button>
+        </div>
+
+        <div id="admin-err-list" class="admin-list">
+            <!-- Заполняется из JS -->
+        </div>
+    </div>
+
+    <!-- ЭКРАН РЕДАКТИРОВАНИЯ ОШИБКИ -->
+    <div id="admin-err-edit-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('admin-errors')">⬅️</button>
+            <h2 id="err-edit-title">Новая ошибка</h2>
+        </div>
+
+        <div class="edit-form">
+            <label>Система:</label>
+            <select id="err-edit-system">
+                <option value="UMAR">UMAR</option>
+                <option value="CLE">CLE</option>
+                <option value="UMAR_new">UMAR_new</option>
+                <option value="CLE_new">CLE_new</option>
+            </select>
+
+            <label>Код ошибки:</label>
+            <input type="text" id="err-edit-code" placeholder="ER 01">
+
+            <label>Описание:</label>
+            <input type="text" id="err-edit-desc" placeholder="Ошибка в работе процессора">
+
+            <label>Период появления:</label>
+            <input type="text" id="err-edit-period" placeholder="При запуске аппарата">
+
+            <label>Решение (шаги с новой строки):</label>
+            <textarea id="err-edit-solution" rows="6" placeholder="1. Замените процессор (U1)&#10;2. Замените плату управления"></textarea>
+
+            <label>Ссылка на картинку/мем:</label>
+            <input type="text" id="err-edit-image" placeholder="https://i.imgur.com/...">
+
+            <label>Контакт:</label>
+            <select id="err-edit-contact">
+                <option value="fanis">Фанис</option>
+                <option value="vildan">Вильдан</option>
+            </select>
+
+            <label>Активно:</label>
+            <select id="err-edit-active">
+                <option value="true">Да</option>
+                <option value="false">Нет</option>
+            </select>
+
+            <div class="edit-buttons">
+                <button class="save-btn" onclick="app.saveError()">💾 Сохранить</button>
+                <button class="delete-btn" id="err-delete-btn" onclick="app.deleteError()">🗑️ Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН АДМИНКА - КОНТАКТЫ -->
+    <div id="admin-contacts-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('admin')">⬅️</button>
+            <h2>📞 Контакты</h2>
+        </div>
+
+        <div class="edit-form">
+            <label>Фанис (телефон):</label>
+            <input type="tel" id="contact-fanis" placeholder="+7XXXXXXXXXX">
+
+            <label>Вильдан (телефон):</label>
+            <input type="tel" id="contact-vildan" placeholder="+7XXXXXXXXXX">
+
+            <button class="save-btn" onclick="app.saveContacts()">💾 Сохранить</button>
+        </div>
+    </div>
+
+    <!-- ЭКРАН ИМПОРТА -->
+    <div id="admin-import-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('admin')">⬅️</button>
+            <h2>📥 Импорт</h2>
+        </div>
+
+        <div class="edit-form">
+            <label>Вставьте JSON данные:</label>
+            <textarea id="import-data" rows="12" placeholder="{&#10;  &quot;breakdowns&quot;: [...],&#10;  &quot;errors&quot;: [...]&#10;}"></textarea>
+            <button class="save-btn" onclick="app.importData()">📥 Загрузить</button>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ВИДЕО -->
+    <div id="video-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="app.closeVideo()">✕</button>
+            <div id="video-container"></div>
+        </div>
+    </div>
+
+    <!-- УВЕДОМЛЕНИЯ -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

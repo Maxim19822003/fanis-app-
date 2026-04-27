@@ -10,7 +10,7 @@
 1. Откройте [github.com](https://github.com) в браузере телефона
 2. Войдите в аккаунт (или создайте)
 3. Нажмите **+** → **New repository**
-4. Название: `fanis-app`
+4. Название: `fanis-app-`
 5. Нажмите **Create repository**
 6. Нажмите **Add file** → **Upload files**
 7. Выберите файлы: `index.html`, `style.css`, `app.js`, `sw.js`, `manifest.json`

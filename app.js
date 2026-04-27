@@ -1,11 +1,10 @@
 // ============================================
-// ФАНИС PWA v2 — Работа с бэкендом
+// ФАНИС PWA v2.1 — Работа с бэкендом (FIXED)
 // ============================================
 
-const API_URL = 'https://fanis-api.onrender.com'; // ЗАМЕНИТЕ на ваш URL бэкенда
+const API_URL = 'https://fanis-api.onrender.com';
 
 const App = {
-    // === ДАННЫЕ ===
     data: {
         breakdowns: [],
         errors: [],
@@ -18,39 +17,36 @@ const App = {
     isAdmin: false,
     editingId: null,
 
-    // === ИНИЦИАЛИЗАЦИЯ ===
     async init() {
         await this.loadData();
         this.setupServiceWorker();
         this.showSplash();
     },
 
-    // === ЗАГРУЗКА ДАННЫХ С СЕРВЕРА ===
     async loadData() {
         try {
-            // Загружаем поломки
             const bdResponse = await fetch(`${API_URL}/api/breakdowns`);
             if (bdResponse.ok) {
                 this.data.breakdowns = await bdResponse.json();
+            } else {
+                console.error('breakdowns load failed:', bdResponse.status);
             }
 
-            // Загружаем контакты
             const contactsResponse = await fetch(`${API_URL}/api/contacts`);
             if (contactsResponse.ok) {
                 this.data.contacts = await contactsResponse.json();
+            } else {
+                console.error('contacts load failed:', contactsResponse.status);
             }
 
-            // Сохраняем в кэш для офлайн-режима
             this.saveToCache();
         } catch (e) {
             console.error('API error:', e);
-            // Если нет сети — загружаем из кэша
             this.loadFromCache();
             this.showToast('⚠️ Офлайн-режим');
         }
     },
 
-    // === КЭШ ДЛЯ ОФЛАЙНА ===
     saveToCache() {
         localStorage.setItem('fanis_cache', JSON.stringify(this.data));
         localStorage.setItem('fanis_cache_time', Date.now());
@@ -58,41 +54,29 @@ const App = {
 
     loadFromCache() {
         const cached = localStorage.getItem('fanis_cache');
-        if (cached) {
-            this.data = JSON.parse(cached);
-        }
+        if (cached) this.data = JSON.parse(cached);
     },
 
-    // === SERVICE WORKER ===
     setupServiceWorker() {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(() => {});
         }
     },
 
-    // === ЗАСТАВКА ===
     showSplash() {
-        setTimeout(() => {
-            this.goTo('home');
-        }, 2500);
+        setTimeout(() => this.goTo('home'), 2500);
     },
 
-    // === НАВИГАЦИЯ ===
     goTo(screenId) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(screenId + '-screen').classList.add('active');
-
-        if (screenId !== 'splash') {
-            this.history.push(screenId);
-        }
-
+        if (screenId !== 'splash') this.history.push(screenId);
         if (screenId === 'breakdowns') this.renderBreakdowns();
         if (screenId === 'systems') this.renderSystems();
         if (screenId === 'admin') this.updateAdminCounts();
         if (screenId === 'admin-breakdowns') this.renderAdminBreakdowns();
         if (screenId === 'admin-errors') this.renderAdminErrors();
         if (screenId === 'admin-contacts') this.loadContacts();
-        if (screenId === 'admin-settings') this.loadSettings();
     },
 
     goBack() {
@@ -101,11 +85,9 @@ const App = {
         this.goTo(prev);
     },
 
-    // === РЕНДЕР ПОЛОМОК ===
     renderBreakdowns() {
         const grid = document.getElementById('breakdowns-grid');
         const active = this.data.breakdowns.filter(b => b.active);
-
         grid.innerHTML = active.map(b => `
             <div class="grid-item" onclick="app.openBreakdown(${b.id})">
                 <span class="emoji">${b.emoji}</span>
@@ -118,18 +100,11 @@ const App = {
         const bd = this.data.breakdowns.find(b => b.id === id);
         if (!bd) return;
         this.currentBreakdown = bd;
-
         document.getElementById('bd-card-title').textContent = bd.name + ' ' + bd.emoji;
-
         const contact = this.data.contacts[bd.contact] || this.data.contacts.fanis || '';
         const contactName = bd.contact === 'vildan' ? 'Вильдану' : 'Фанису';
-
         let html = '';
-
-        if (bd.image_url) {
-            html += `<div class="card-mem"><img src="${bd.image_url}" alt="мем" loading="lazy"></div>`;
-        }
-
+        if (bd.image_url) html += `<div class="card-mem"><img src="${bd.image_url}" alt="мем" loading="lazy"></div>`;
         if (bd.video_url) {
             html += `
                 <div class="card-video-thumb" onclick="app.playVideo('${bd.video_url}')">
@@ -138,16 +113,12 @@ const App = {
                 </div>
             `;
         }
-
         html += `
             <div class="card-section">
                 <h3>📋 Пошаговая инструкция</h3>
-                <ol>
-                    ${bd.steps.map(s => `<li>${s}</li>`).join('')}
-                </ol>
+                <ol>${bd.steps.map(s => `<li>${s}</li>`).join('')}</ol>
             </div>
         `;
-
         if (bd.extra) {
             html += `
                 <div class="card-section card-extra">
@@ -156,22 +127,18 @@ const App = {
                 </div>
             `;
         }
-
         html += `
             <a href="tel:${contact}" class="action-btn btn-call">📞 Позвонить ${contactName}</a>
             <button class="action-btn btn-back" onclick="app.goTo('breakdowns')">⬅️ Назад в Поломки</button>
             <button class="action-btn btn-start" onclick="app.goTo('home')">🏠 В начало</button>
         `;
-
         document.getElementById('bd-card-content').innerHTML = html;
         this.goTo('breakdown-card');
     },
 
-    // === РЕНДЕР СИСТЕМ ===
     renderSystems() {
         const systems = ['UMAR', 'CLE', 'UMAR_new', 'CLE_new'];
         const grid = document.getElementById('systems-grid');
-
         grid.innerHTML = systems.map(s => `
             <div class="grid-item" onclick="app.openSystem('${s}')">
                 <span class="name">${s}</span>
@@ -182,23 +149,22 @@ const App = {
     async openSystem(system) {
         this.currentSystem = system;
         document.getElementById('errors-system-title').textContent = system + ' — Коды ошибок';
-
         try {
             const response = await fetch(`${API_URL}/api/errors/${system}`);
             if (response.ok) {
                 const errors = await response.json();
                 const grid = document.getElementById('errors-grid');
-
                 grid.innerHTML = errors.map(e => `
                     <div class="grid-item" onclick="app.openError(${e.id})">
                         <span class="name">${e.code}</span>
                     </div>
                 `).join('');
-
                 this.goTo('errors');
+            } else {
+                this.showToast('❌ Ошибка загрузки: ' + response.status);
             }
         } catch (e) {
-            this.showToast('❌ Ошибка загрузки');
+            this.showToast('❌ Нет связи с сервером');
         }
     },
 
@@ -206,25 +172,17 @@ const App = {
         const err = this.data.errors.find(e => e.id === id);
         if (!err) return;
         this.currentError = err;
-
         document.getElementById('err-card-title').textContent = err.code;
-
         const contact = this.data.contacts[err.contact] || this.data.contacts.fanis || '';
         const contactName = err.contact === 'vildan' ? 'Вильдану' : 'Фанису';
-
         let html = '';
-
-        if (err.image_url) {
-            html += `<div class="card-mem"><img src="${err.image_url}" alt="мем" loading="lazy"></div>`;
-        }
-
+        if (err.image_url) html += `<div class="card-mem"><img src="${err.image_url}" alt="мем" loading="lazy"></div>`;
         html += `
             <div class="card-section">
                 <h3>❌ Описание ошибки</h3>
                 <p>${err.description}</p>
             </div>
         `;
-
         if (err.period) {
             html += `
                 <div class="card-section">
@@ -233,44 +191,31 @@ const App = {
                 </div>
             `;
         }
-
         html += `
             <div class="card-section">
                 <h3>🔧 Возможные пути устранения</h3>
-                <ol>
-                    ${err.solution.map(s => `<li>${s}</li>`).join('')}
-                </ol>
+                <ol>${err.solution.map(s => `<li>${s}</li>`).join('')}</ol>
             </div>
         `;
-
         html += `
             <a href="tel:${contact}" class="action-btn btn-call">📞 Позвонить ${contactName}</a>
             <button class="action-btn btn-back" onclick="app.goTo('errors')">⬅️ Назад к кодам ошибок</button>
             <button class="action-btn btn-start" onclick="app.goTo('home')">🏠 В начало</button>
         `;
-
         document.getElementById('err-card-content').innerHTML = html;
         this.goTo('error-card');
     },
 
-    // === ВИДЕО ===
     playVideo(url) {
         const container = document.getElementById('video-container');
         let embedUrl = '';
-
         if (url.includes('rutube.ru')) {
             const match = url.match(/video\/([a-f0-9]+)/);
-            if (match) {
-                embedUrl = `https://rutube.ru/play/embed/${match[1]}`;
-            }
-        }
-        else if (url.includes('vk.com') || url.includes('vkvideo.ru')) {
+            if (match) embedUrl = `https://rutube.ru/play/embed/${match[1]}`;
+        } else if (url.includes('vk.com') || url.includes('vkvideo.ru')) {
             const match = url.match(/video(-?\d+)_(-?\d+)/);
-            if (match) {
-                embedUrl = `https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}`;
-            }
+            if (match) embedUrl = `https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}`;
         }
-
         if (embedUrl) {
             container.innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="autoplay; encrypted-media"></iframe>`;
             document.getElementById('video-modal').classList.add('active');
@@ -284,7 +229,6 @@ const App = {
         document.getElementById('video-container').innerHTML = '';
     },
 
-    // === АДМИНКА ===
     toggleAdmin() {
         if (this.isAdmin) {
             this.isAdmin = false;
@@ -303,7 +247,6 @@ const App = {
                 body: JSON.stringify({ password: pass })
             });
             const result = await response.json();
-
             if (result.valid) {
                 this.isAdmin = true;
                 document.getElementById('admin-password').value = '';
@@ -313,7 +256,7 @@ const App = {
                 this.showToast('❌ Неверный пароль');
             }
         } catch (e) {
-            this.showToast('❌ Ошибка сервера');
+            this.showToast('❌ Ошибка сервера: ' + e.message);
         }
     },
 
@@ -326,23 +269,20 @@ const App = {
         this.goTo('admin-' + section);
     },
 
-    // === АДМИН: ПОЛОМКИ ===
     async renderAdminBreakdowns() {
-        // Перезагружаем с сервера для актуальности
         try {
             const response = await fetch(`${API_URL}/api/breakdowns/all`);
-            if (response.ok) {
-                this.data.breakdowns = await response.json();
-            }
-        } catch (e) {}
-
+            if (response.ok) this.data.breakdowns = await response.json();
+        } catch (e) {
+            console.error('renderAdminBreakdowns error:', e);
+        }
         const list = document.getElementById('admin-bd-list');
         list.innerHTML = this.data.breakdowns.map(b => `
             <div class="admin-list-item" onclick="app.editBreakdown(${b.id})">
                 <span class="item-emoji">${b.emoji}</span>
                 <div class="item-info">
                     <div class="item-name">${b.name}</div>
-                    <div class="item-meta">${b.steps.length} шагов · ${b.video_url ? '🎬' : ''} ${b.extra ? '💡' : ''}</div>
+                    <div class="item-meta">${(b.steps || []).length} шагов · ${b.video_url ? '🎬' : ''} ${b.extra ? '💡' : ''}</div>
                 </div>
                 <span class="item-status ${b.active ? '' : 'inactive'}">${b.active ? 'Активно' : 'Скрыто'}</span>
             </div>
@@ -352,19 +292,16 @@ const App = {
     editBreakdown(id = null) {
         this.editingId = id;
         const bd = id ? this.data.breakdowns.find(b => b.id === id) : null;
-
         document.getElementById('bd-edit-title').textContent = bd ? 'Редактировать' : 'Новая поломка';
         document.getElementById('bd-edit-name').value = bd ? bd.name : '';
         document.getElementById('bd-edit-emoji').value = bd ? bd.emoji : '';
-        document.getElementById('bd-edit-steps').value = bd ? bd.steps.join('\n') : '';
+        document.getElementById('bd-edit-steps').value = bd ? (bd.steps || []).join('\n') : '';
         document.getElementById('bd-edit-video').value = bd ? bd.video_url : '';
         document.getElementById('bd-edit-image').value = bd ? bd.image_url : '';
         document.getElementById('bd-edit-extra').value = bd ? bd.extra : '';
         document.getElementById('bd-edit-contact').value = bd ? bd.contact : 'fanis';
         document.getElementById('bd-edit-active').value = bd ? String(bd.active) : 'true';
-
         document.getElementById('bd-delete-btn').style.display = bd ? 'block' : 'none';
-
         this.goTo('admin-bd-edit');
     },
 
@@ -391,57 +328,58 @@ const App = {
             active: document.getElementById('bd-edit-active').value === 'true'
         };
 
+        console.log('Sending breakdown data:', data);
+
         try {
             let response;
-            if (this.editingId) {
-                response = await fetch(`${API_URL}/api/breakdowns/${this.editingId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-            } else {
-                response = await fetch(`${API_URL}/api/breakdowns`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-            }
+            const url = this.editingId ? `${API_URL}/api/breakdowns/${this.editingId}` : `${API_URL}/api/breakdowns`;
+            const method = this.editingId ? 'PUT' : 'POST';
+
+            response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            console.log('Response status:', response.status);
+            const responseText = await response.text();
+            console.log('Response body:', responseText);
 
             if (response.ok) {
                 this.showToast('✅ Сохранено');
-                await this.loadData(); // Перезагружаем данные
+                await this.loadData();
                 this.goTo('admin-breakdowns');
             } else {
-                this.showToast('❌ Ошибка сохранения');
+                this.showToast('❌ Ошибка ' + response.status + ': ' + responseText);
             }
         } catch (e) {
-            this.showToast('❌ Нет связи с сервером');
+            console.error('saveBreakdown error:', e);
+            this.showToast('❌ Нет связи: ' + e.message);
         }
     },
 
     async deleteBreakdown() {
         if (!this.editingId) return;
         if (!confirm('Удалить поломку?')) return;
-
         try {
-            await fetch(`${API_URL}/api/breakdowns/${this.editingId}`, { method: 'DELETE' });
-            this.showToast('🗑️ Удалено');
-            await this.loadData();
-            this.goTo('admin-breakdowns');
+            const response = await fetch(`${API_URL}/api/breakdowns/${this.editingId}`, { method: 'DELETE' });
+            if (response.ok) {
+                this.showToast('🗑️ Удалено');
+                await this.loadData();
+                this.goTo('admin-breakdowns');
+            } else {
+                this.showToast('❌ Ошибка удаления: ' + response.status);
+            }
         } catch (e) {
             this.showToast('❌ Ошибка удаления');
         }
     },
 
-    // === АДМИН: ОШИБКИ ===
     async renderAdminErrors() {
         try {
             const response = await fetch(`${API_URL}/api/errors/all`);
-            if (response.ok) {
-                this.data.errors = await response.json();
-            }
+            if (response.ok) this.data.errors = await response.json();
         } catch (e) {}
-
         const list = document.getElementById('admin-err-list');
         list.innerHTML = this.data.errors.map(e => `
             <div class="admin-list-item" onclick="app.editError(${e.id})">
@@ -457,19 +395,16 @@ const App = {
     editError(id = null) {
         this.editingId = id;
         const err = id ? this.data.errors.find(e => e.id === id) : null;
-
         document.getElementById('err-edit-title').textContent = err ? 'Редактировать' : 'Новая ошибка';
         document.getElementById('err-edit-system').value = err ? err.system : 'UMAR';
         document.getElementById('err-edit-code').value = err ? err.code : '';
         document.getElementById('err-edit-desc').value = err ? err.description : '';
         document.getElementById('err-edit-period').value = err ? err.period : '';
-        document.getElementById('err-edit-solution').value = err ? err.solution.join('\n') : '';
+        document.getElementById('err-edit-solution').value = err ? (err.solution || []).join('\n') : '';
         document.getElementById('err-edit-image').value = err ? err.image_url : '';
         document.getElementById('err-edit-contact').value = err ? err.contact : 'fanis';
         document.getElementById('err-edit-active').value = err ? String(err.active) : 'true';
-
         document.getElementById('err-delete-btn').style.display = err ? 'block' : 'none';
-
         this.goTo('admin-err-edit');
     },
 
@@ -496,49 +431,53 @@ const App = {
             active: document.getElementById('err-edit-active').value === 'true'
         };
 
+        console.log('Sending error data:', data);
+
         try {
             let response;
-            if (this.editingId) {
-                response = await fetch(`${API_URL}/api/errors/${this.editingId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-            } else {
-                response = await fetch(`${API_URL}/api/errors`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-            }
+            const url = this.editingId ? `${API_URL}/api/errors/${this.editingId}` : `${API_URL}/api/errors`;
+            const method = this.editingId ? 'PUT' : 'POST';
+
+            response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            console.log('Response status:', response.status);
+            const responseText = await response.text();
+            console.log('Response body:', responseText);
 
             if (response.ok) {
                 this.showToast('✅ Сохранено');
                 await this.loadData();
                 this.goTo('admin-errors');
             } else {
-                this.showToast('❌ Ошибка сохранения');
+                this.showToast('❌ Ошибка ' + response.status + ': ' + responseText);
             }
         } catch (e) {
-            this.showToast('❌ Нет связи с сервером');
+            console.error('saveError error:', e);
+            this.showToast('❌ Нет связи: ' + e.message);
         }
     },
 
     async deleteError() {
         if (!this.editingId) return;
         if (!confirm('Удалить ошибку?')) return;
-
         try {
-            await fetch(`${API_URL}/api/errors/${this.editingId}`, { method: 'DELETE' });
-            this.showToast('🗑️ Удалено');
-            await this.loadData();
-            this.goTo('admin-errors');
+            const response = await fetch(`${API_URL}/api/errors/${this.editingId}`, { method: 'DELETE' });
+            if (response.ok) {
+                this.showToast('🗑️ Удалено');
+                await this.loadData();
+                this.goTo('admin-errors');
+            } else {
+                this.showToast('❌ Ошибка удаления: ' + response.status);
+            }
         } catch (e) {
             this.showToast('❌ Ошибка удаления');
         }
     },
 
-    // === АДМИН: КОНТАКТЫ ===
     loadContacts() {
         document.getElementById('contact-fanis').value = this.data.contacts.fanis || '';
         document.getElementById('contact-vildan').value = this.data.contacts.vildan || '';
@@ -549,7 +488,7 @@ const App = {
         const vildan = document.getElementById('contact-vildan').value.trim();
 
         try {
-            await Promise.all([
+            const [r1, r2] = await Promise.all([
                 fetch(`${API_URL}/api/contacts/fanis`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -562,84 +501,103 @@ const App = {
                 })
             ]);
 
-            this.data.contacts.fanis = fanis;
-            this.data.contacts.vildan = vildan;
-            this.saveToCache();
-            this.showToast('✅ Контакты сохранены');
-        } catch (e) {
-            this.showToast('❌ Ошибка сохранения');
-        }
-    },
-
-    // === АДМИН: НАСТРОЙКИ (пароль) ===
-    loadSettings() {
-        document.getElementById('settings-old-pass').value = '';
-        document.getElementById('settings-new-pass').value = '';
-        document.getElementById('settings-confirm-pass').value = '';
-    },
-
-    async changePassword() {
-        const oldPass = document.getElementById('settings-old-pass').value;
-        const newPass = document.getElementById('settings-new-pass').value;
-        const confirmPass = document.getElementById('settings-confirm-pass').value;
-
-        if (!oldPass || !newPass) {
-            this.showToast('❌ Заполните все поля');
-            return;
-        }
-
-        if (newPass !== confirmPass) {
-            this.showToast('❌ Пароли не совпадают');
-            return;
-        }
-
-        if (newPass.length < 4) {
-            this.showToast('❌ Пароль минимум 4 символа');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_URL}/api/admin/change-password`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ oldPassword: oldPass, newPassword: newPass })
-            });
-
-            if (response.ok) {
-                this.showToast('✅ Пароль изменён');
-                document.getElementById('settings-old-pass').value = '';
-                document.getElementById('settings-new-pass').value = '';
-                document.getElementById('settings-confirm-pass').value = '';
+            if (r1.ok && r2.ok) {
+                this.data.contacts.fanis = fanis;
+                this.data.contacts.vildan = vildan;
+                this.saveToCache();
+                this.showToast('✅ Контакты сохранены');
             } else {
-                const result = await response.json();
-                this.showToast('❌ ' + (result.error || 'Ошибка'));
+                this.showToast('❌ Ошибка: ' + r1.status + ' / ' + r2.status);
             }
         } catch (e) {
-            this.showToast('❌ Ошибка сервера');
+            this.showToast('❌ Ошибка сохранения: ' + e.message);
         }
     },
 
-    async resetPassword() {
-        if (!confirm('Сбросить пароль на стандартный (fanis2024)?')) return;
+    // ===== ЭКСПОРТ / ИМПОРТ =====
+    exportData() {
+        const data = {
+            breakdowns: this.data.breakdowns,
+            errors: this.data.errors,
+            contacts: this.data.contacts,
+            exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'fanis-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        this.showToast('💾 Данные экспортированы');
+    },
 
+    showImport() {
+        this.goTo('admin-import');
+    },
+
+    async importData() {
+        const raw = document.getElementById('import-data').value.trim();
+        if (!raw) {
+            this.showToast('❌ Вставьте данные');
+            return;
+        }
         try {
-            const response = await fetch(`${API_URL}/api/admin/reset-password`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ confirm: 'RESET' })
-            });
+            const data = JSON.parse(raw);
+            let saved = 0;
 
-            if (response.ok) {
-                this.showToast('✅ Пароль сброшен на fanis2024');
-            } else {
-                this.showToast('❌ Ошибка сброса');
+            if (data.breakdowns) {
+                for (const bd of data.breakdowns) {
+                    try {
+                        const r = await fetch(`${API_URL}/api/breakdowns`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: bd.name,
+                                emoji: bd.emoji || '🔧',
+                                steps: bd.steps || [],
+                                video_url: bd.video_url || '',
+                                image_url: bd.image_url || '',
+                                extra: bd.extra || '',
+                                contact: bd.contact || 'fanis',
+                                active: bd.active !== false
+                            })
+                        });
+                        if (r.ok) saved++;
+                    } catch (e) {}
+                }
             }
+
+            if (data.errors) {
+                for (const err of data.errors) {
+                    try {
+                        const r = await fetch(`${API_URL}/api/errors`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                system: err.system,
+                                code: err.code,
+                                description: err.description,
+                                period: err.period || '',
+                                solution: err.solution || [],
+                                image_url: err.image_url || '',
+                                contact: err.contact || 'fanis',
+                                active: err.active !== false
+                            })
+                        });
+                        if (r.ok) saved++;
+                    } catch (e) {}
+                }
+            }
+
+            await this.loadData();
+            this.showToast(`✅ Импортировано ${saved} записей`);
+            this.goTo('admin');
         } catch (e) {
-            this.showToast('❌ Ошибка сервера');
+            this.showToast('❌ Неверный формат JSON');
         }
     },
 
-    // === TOAST ===
     showToast(message) {
         const toast = document.getElementById('toast');
         toast.textContent = message;
@@ -648,6 +606,5 @@ const App = {
     }
 };
 
-// === ИНИЦИАЛИЗАЦИЯ ===
 const app = App;
 document.addEventListener('DOMContentLoaded', () => app.init());

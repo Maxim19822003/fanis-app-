@@ -183,7 +183,7 @@ html, body {
     border-radius: var(--radius);
     font-size: 16px;
     font-weight: 600;
-    color: #1a1a2e;
+    color: white;
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -194,7 +194,12 @@ html, body {
     text-align: center;
     min-height: 100px;
 }
-
+/* Кнопка Войти в админке — тёмный текст */
+.admin-login-form .main-btn {
+    color: #1a1a2e;
+    background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+}
+        
 .main-btn:active {
     transform: scale(0.97);
 }

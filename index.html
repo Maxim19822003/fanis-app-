@@ -166,7 +166,7 @@ html, body {
     color: var(--text-secondary);
 }
 
-/* ===== ГЛАВНЫЕ КНОПКИ — ИСПРАВЛЕНО ===== */
+/* ===== ГЛАВНЫЕ КНОПКИ ===== */
 .home-buttons {
     width: 100%;
     max-width: 360px;
@@ -227,18 +227,10 @@ html, body {
     line-height: 1.2;
 }
 
-/* Адаптация для маленьких экранов */
 @media (max-height: 700px) {
-    .home-header {
-        margin-bottom: 20px;
-    }
-    .robot-avatar-large {
-        font-size: 70px;
-    }
-    .main-btn {
-        min-height: 85px;
-        padding: 16px 14px;
-    }
+    .home-header { margin-bottom: 20px; }
+    .robot-avatar-large { font-size: 70px; }
+    .main-btn { min-height: 85px; padding: 16px 14px; }
 }
 
 .home-footer {
@@ -364,13 +356,6 @@ html, body {
     font-size: 14px;
     font-weight: 500;
     line-height: 1.2;
-}
-
-.grid-item .check {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    font-size: 16px;
 }
 
 .grid-item.inactive {
@@ -537,10 +522,15 @@ html, body {
     margin-bottom: 20px;
 }
 
-.admin-login-form input {
-    width: 100%;
+.password-wrapper {
+    position: relative;
     max-width: 300px;
-    padding: 16px 20px;
+    margin: 0 auto 20px;
+}
+
+.password-wrapper input {
+    width: 100%;
+    padding: 16px 50px 16px 20px;
     font-size: 18px;
     background: var(--bg-card);
     border: 2px solid var(--border);
@@ -548,18 +538,23 @@ html, body {
     color: var(--text-primary);
     text-align: center;
     letter-spacing: 4px;
-    margin-bottom: 20px;
 }
 
-.admin-login-form input:focus {
+.password-wrapper input:focus {
     outline: none;
     border-color: var(--accent);
 }
 
-.admin-login-form .hint {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-top: 16px;
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    padding: 0;
 }
 
 /* ===== Admin Menu ===== */
@@ -1003,8 +998,11 @@ html, body {
 
         <div class="admin-login-form">
             <p>Введите пароль:</p>
-            <input type="password" id="admin-password" placeholder="Пароль" maxlength="20">
-            <button class="main-btn" onclick="app.checkAdminPassword()">Войти</button>
+            <div class="password-wrapper">
+                <input type="password" id="admin-password" placeholder="Пароль" maxlength="20">
+                <button type="button" class="password-toggle" onclick="app.togglePasswordVisibility()">👁️</button>
+            </div>
+            <button class="main-btn" onclick="app.checkAdminPassword()" style="max-width:300px;margin:0 auto;">Войти</button>
         </div>
     </div>
 
@@ -1026,6 +1024,9 @@ html, body {
             </button>
             <button class="admin-menu-btn" onclick="app.showAdminSection('contacts')">
                 <span>📞 Контакты</span>
+            </button>
+            <button class="admin-menu-btn" onclick="app.showAdminSection('password')">
+                <span>🔐 Сменить пароль</span>
             </button>
             <button class="admin-menu-btn export-btn" onclick="app.exportData()">
                 <span>💾 Экспорт данных</span>
@@ -1172,6 +1173,36 @@ html, body {
             <input type="tel" id="contact-vildan" placeholder="+7XXXXXXXXXX">
 
             <button class="save-btn" onclick="app.saveContacts()">💾 Сохранить</button>
+        </div>
+    </div>
+
+    <!-- ЭКРАН СМЕНЫ ПАРОЛЯ -->
+    <div id="admin-password-screen" class="screen">
+        <div class="screen-header">
+            <button class="back-btn" onclick="app.goTo('admin')">⬅️</button>
+            <h2>🔐 Сменить пароль</h2>
+        </div>
+
+        <div class="edit-form">
+            <label>Старый пароль:</label>
+            <div class="password-wrapper">
+                <input type="password" id="old-password" placeholder="Текущий пароль">
+                <button type="button" class="password-toggle" onclick="app.togglePasswordField('old-password')">👁️</button>
+            </div>
+
+            <label>Новый пароль:</label>
+            <div class="password-wrapper">
+                <input type="password" id="new-password" placeholder="Новый пароль">
+                <button type="button" class="password-toggle" onclick="app.togglePasswordField('new-password')">👁️</button>
+            </div>
+
+            <label>Повторите новый пароль:</label>
+            <div class="password-wrapper">
+                <input type="password" id="confirm-password" placeholder="Повторите пароль">
+                <button type="button" class="password-toggle" onclick="app.togglePasswordField('confirm-password')">👁️</button>
+            </div>
+
+            <button class="save-btn" onclick="app.changePassword()" style="margin-top:20px;">🔐 Сменить пароль</button>
         </div>
     </div>
 

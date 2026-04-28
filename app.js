@@ -331,16 +331,24 @@ const App = {
         const newIdx = idx + direction;
         if (newIdx < 0 || newIdx >= this.data.breakdowns.length) return;
         
-        // Меняем местами в массиве
         const temp = this.data.breakdowns[idx];
         this.data.breakdowns[idx] = this.data.breakdowns[newIdx];
         this.data.breakdowns[newIdx] = temp;
         
-        // Сохраняем новый порядок (обновляем sort_order если есть, или просто пересохраняем)
-        // Пока просто перезагружаем отображение
-        this.saveToCache();
+        const order = this.data.breakdowns.map((b, i) => ({ id: b.id, sort_order: i }));
+        
+        try {
+            await fetch(`${API_URL}/api/breakdowns/reorder`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order })
+            });
+            this.showToast(direction === -1 ? '↑ Перемещено' : '↓ Перемещено');
+        } catch (e) {
+            this.showToast('❌ Ошибка сохранения порядка');
+        }
+        
         this.renderAdminBreakdowns();
-        this.showToast(direction === -1 ? '↑ Перемещено вверх' : '↓ Перемещено вниз');
     },
 
     editBreakdown(id = null) {

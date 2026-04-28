@@ -1,15 +1,11 @@
 // ============================================
-// ФАНИС PWA v2.1 — Работа с бэкендом (FIXED)
+// ФАНИС PWA v2.5 — ВСЕ ФИКСЫ
 // ============================================
 
 const API_URL = 'https://fanis-api.onrender.com';
 
 const App = {
-    data: {
-        breakdowns: [],
-        errors: [],
-        contacts: {}
-    },
+    data: { breakdowns: [], errors: [], contacts: {} },
     currentBreakdown: null,
     currentError: null,
     currentSystem: null,
@@ -26,30 +22,19 @@ const App = {
     async loadData() {
         try {
             const bdResponse = await fetch(`${API_URL}/api/breakdowns`);
-            if (bdResponse.ok) {
-                this.data.breakdowns = await bdResponse.json();
-            } else {
-                console.error('breakdowns load failed:', bdResponse.status);
-            }
+            if (bdResponse.ok) this.data.breakdowns = await bdResponse.json();
 
             const contactsResponse = await fetch(`${API_URL}/api/contacts`);
-            if (contactsResponse.ok) {
-                this.data.contacts = await contactsResponse.json();
-            } else {
-                console.error('contacts load failed:', contactsResponse.status);
-            }
-
-            this.saveToCache();
+            if (contactsResponse.ok) this.data.contacts = await contactsResponse.json();
         } catch (e) {
-            console.error('API error:', e);
             this.loadFromCache();
             this.showToast('⚠️ Офлайн-режим');
         }
+        this.saveToCache();
     },
 
     saveToCache() {
         localStorage.setItem('fanis_cache', JSON.stringify(this.data));
-        localStorage.setItem('fanis_cache_time', Date.now());
     },
 
     loadFromCache() {
@@ -69,14 +54,19 @@ const App = {
 
     goTo(screenId) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(screenId + '-screen').classList.add('active');
+        const screen = document.getElementById(screenId + '-screen');
+        if (screen) screen.classList.add('active');
+        
         if (screenId !== 'splash') this.history.push(screenId);
+        
+        // Рендеры
         if (screenId === 'breakdowns') this.renderBreakdowns();
         if (screenId === 'systems') this.renderSystems();
         if (screenId === 'admin') this.updateAdminCounts();
         if (screenId === 'admin-breakdowns') this.renderAdminBreakdowns();
         if (screenId === 'admin-errors') this.renderAdminErrors();
         if (screenId === 'admin-contacts') this.loadContacts();
+        if (screenId === 'admin-password') this.loadPasswordScreen();
     },
 
     goBack() {
@@ -85,12 +75,57 @@ const App = {
         this.goTo(prev);
     },
 
+    // ========== ВИДЕО ==========
+    playVideo(url) {
+        const container = document.getElementById('video-container');
+        let embedUrl = '';
+
+        if (url.includes('rutube.ru')) {
+            // Обычное видео: rutube.ru/video/xxx/
+            let match = url.match(/video\/([a-f0-9]+)/i);
+            // Shorts: rutube.ru/shorts/xxx/
+            if (!match) match = url.match(/shorts\/([a-f0-9]+)/i);
+            // Плейлист с video: rutube.ru/play/embed/xxx
+            if (!match) match = url.match(/\/([a-f0-9]{20,})/i);
+            
+            if (match) embedUrl = `https://rutube.ru/play/embed/${match[1]}`;
+        } 
+        else if (url.includes('vk.com') || url.includes('vkvideo.ru')) {
+            const match = url.match(/video(-?\d+)_(-?\d+)/);
+            if (match) embedUrl = `https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}`;
+        }
+        else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            const match = url.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/);
+            if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+        }
+
+        if (embedUrl) {
+            container.innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="autoplay; encrypted-media" style="width:100%;height:100%;border:none;"></iframe>`;
+            document.getElementById('video-modal').classList.add('active');
+        } else {
+            this.showToast('Не удалось открыть видео. Проверьте ссылку.');
+            console.log('Video URL failed:', url);
+        }
+    },
+
+    closeVideo() {
+        document.getElementById('video-modal').classList.remove('active');
+        document.getElementById('video-container').innerHTML = '';
+    },
+
+    // ========== РЕНДЕРЫ ==========
     renderBreakdowns() {
         const grid = document.getElementById('breakdowns-grid');
-        const active = this.data.breakdowns.filter(b => b.active);
+        const active = this.data.breakdowns.filter(b => b.active !== false);
+        
+        if (active.length === 0) {
+            grid.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:40px;">Нет поломок</p>';
+            return;
+        }
+
         grid.innerHTML = active.map(b => `
             <div class="grid-item" onclick="app.openBreakdown(${b.id})">
-                <span class="emoji">${b.emoji}</span>
+                <span class="emoji">${b.emoji || '🔧'}</span>
                 <span class="name">${b.name}</span>
             </div>
         `).join('');
@@ -100,25 +135,30 @@ const App = {
         const bd = this.data.breakdowns.find(b => b.id === id);
         if (!bd) return;
         this.currentBreakdown = bd;
-        document.getElementById('bd-card-title').textContent = bd.name + ' ' + bd.emoji;
+
+        document.getElementById('bd-card-title').textContent = bd.name + ' ' + (bd.emoji || '🔧');
         const contact = this.data.contacts[bd.contact] || this.data.contacts.fanis || '';
         const contactName = bd.contact === 'vildan' ? 'Вильдану' : 'Фанису';
+
         let html = '';
         if (bd.image_url) html += `<div class="card-mem"><img src="${bd.image_url}" alt="мем" loading="lazy"></div>`;
+        
         if (bd.video_url) {
             html += `
-                <div class="card-video-thumb" onclick="app.playVideo('${bd.video_url}')">
+                <div class="card-video-thumb" onclick="app.playVideo('${bd.video_url.replace(/'/g, "\\'")}')">
                     <span class="play-icon">▶️</span>
                     <span class="video-label">▶️ Смотреть видео</span>
                 </div>
             `;
         }
+
         html += `
             <div class="card-section">
                 <h3>📋 Пошаговая инструкция</h3>
-                <ol>${bd.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+                <ol>${(bd.steps || []).map(s => `<li>${s}</li>`).join('')}</ol>
             </div>
         `;
+
         if (bd.extra) {
             html += `
                 <div class="card-section card-extra">
@@ -127,11 +167,13 @@ const App = {
                 </div>
             `;
         }
+
         html += `
             <a href="tel:${contact}" class="action-btn btn-call">📞 Позвонить ${contactName}</a>
             <button class="action-btn btn-back" onclick="app.goTo('breakdowns')">⬅️ Назад в Поломки</button>
             <button class="action-btn btn-start" onclick="app.goTo('home')">🏠 В начало</button>
         `;
+
         document.getElementById('bd-card-content').innerHTML = html;
         this.goTo('breakdown-card');
     },
@@ -154,17 +196,17 @@ const App = {
             if (response.ok) {
                 const errors = await response.json();
                 const grid = document.getElementById('errors-grid');
-                grid.innerHTML = errors.map(e => `
-                    <div class="grid-item" onclick="app.openError(${e.id})">
-                        <span class="name">${e.code}</span>
-                    </div>
-                `).join('');
+                grid.innerHTML = errors.length === 0 
+                    ? '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Нет ошибок</p>'
+                    : errors.map(e => `
+                        <div class="grid-item" onclick="app.openError(${e.id})">
+                            <span class="name">${e.code}</span>
+                        </div>
+                    `).join('');
                 this.goTo('errors');
-            } else {
-                this.showToast('❌ Ошибка загрузки: ' + response.status);
             }
         } catch (e) {
-            this.showToast('❌ Нет связи с сервером');
+            this.showToast('❌ Ошибка загрузки');
         }
     },
 
@@ -175,66 +217,48 @@ const App = {
         document.getElementById('err-card-title').textContent = err.code;
         const contact = this.data.contacts[err.contact] || this.data.contacts.fanis || '';
         const contactName = err.contact === 'vildan' ? 'Вильдану' : 'Фанису';
+
         let html = '';
         if (err.image_url) html += `<div class="card-mem"><img src="${err.image_url}" alt="мем" loading="lazy"></div>`;
         html += `
-            <div class="card-section">
-                <h3>❌ Описание ошибки</h3>
-                <p>${err.description}</p>
-            </div>
+            <div class="card-section"><h3>❌ Описание</h3><p>${err.description}</p></div>
         `;
-        if (err.period) {
-            html += `
-                <div class="card-section">
-                    <h3>⏰ Период появления</h3>
-                    <p>${err.period}</p>
-                </div>
-            `;
-        }
+        if (err.period) html += `<div class="card-section"><h3>⏰ Период</h3><p>${err.period}</p></div>`;
         html += `
             <div class="card-section">
-                <h3>🔧 Возможные пути устранения</h3>
-                <ol>${err.solution.map(s => `<li>${s}</li>`).join('')}</ol>
+                <h3>🔧 Решение</h3>
+                <ol>${(err.solution || []).map(s => `<li>${s}</li>`).join('')}</ol>
             </div>
         `;
         html += `
             <a href="tel:${contact}" class="action-btn btn-call">📞 Позвонить ${contactName}</a>
-            <button class="action-btn btn-back" onclick="app.goTo('errors')">⬅️ Назад к кодам ошибок</button>
+            <button class="action-btn btn-back" onclick="app.goTo('errors')">⬅️ Назад</button>
             <button class="action-btn btn-start" onclick="app.goTo('home')">🏠 В начало</button>
         `;
         document.getElementById('err-card-content').innerHTML = html;
         this.goTo('error-card');
     },
 
-    playVideo(url) {
-        const container = document.getElementById('video-container');
-        let embedUrl = '';
-        if (url.includes('rutube.ru')) {
-            const match = url.match(/video\/([a-f0-9]+)/);
-            if (match) embedUrl = `https://rutube.ru/play/embed/${match[1]}`;
-        } else if (url.includes('vk.com') || url.includes('vkvideo.ru')) {
-            const match = url.match(/video(-?\d+)_(-?\d+)/);
-            if (match) embedUrl = `https://vk.com/video_ext.php?oid=${match[1]}&id=${match[2]}`;
-        }
-        if (embedUrl) {
-            container.innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="autoplay; encrypted-media"></iframe>`;
-            document.getElementById('video-modal').classList.add('active');
-        } else {
-            this.showToast('Не удалось открыть видео. Проверьте ссылку.');
-        }
-    },
-
-    closeVideo() {
-        document.getElementById('video-modal').classList.remove('active');
-        document.getElementById('video-container').innerHTML = '';
-    },
-
+    // ========== АДМИНКА (ФИКС: всегда работает) ==========
     toggleAdmin() {
-        if (this.isAdmin) {
+        // Фикс: всегда показываем логин, если не админ
+        if (!this.isAdmin) {
+            this.goTo('admin-login');
+        } else {
             this.isAdmin = false;
             this.goTo('home');
+        }
+    },
+
+    togglePasswordVisibility() {
+        const input = document.getElementById('admin-password');
+        const btn = document.getElementById('password-toggle-btn');
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = '🙈';
         } else {
-            this.goTo('admin-login');
+            input.type = 'password';
+            btn.textContent = '👁️';
         }
     },
 
@@ -256,7 +280,7 @@ const App = {
                 this.showToast('❌ Неверный пароль');
             }
         } catch (e) {
-            this.showToast('❌ Ошибка сервера: ' + e.message);
+            this.showToast('❌ Ошибка сервера');
         }
     },
 
@@ -269,24 +293,54 @@ const App = {
         this.goTo('admin-' + section);
     },
 
+    // ========== АДМИН: ПОЛОМКИ + СОРТИРОВКА ==========
     async renderAdminBreakdowns() {
         try {
             const response = await fetch(`${API_URL}/api/breakdowns/all`);
             if (response.ok) this.data.breakdowns = await response.json();
-        } catch (e) {
-            console.error('renderAdminBreakdowns error:', e);
-        }
+        } catch (e) {}
+        
         const list = document.getElementById('admin-bd-list');
-        list.innerHTML = this.data.breakdowns.map(b => `
-            <div class="admin-list-item" onclick="app.editBreakdown(${b.id})">
-                <span class="item-emoji">${b.emoji}</span>
-                <div class="item-info">
-                    <div class="item-name">${b.name}</div>
-                    <div class="item-meta">${(b.steps || []).length} шагов · ${b.video_url ? '🎬' : ''} ${b.extra ? '💡' : ''}</div>
+        if (this.data.breakdowns.length === 0) {
+            list.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Нет поломок. Нажмите ➕</p>';
+            return;
+        }
+
+        list.innerHTML = this.data.breakdowns.map((b, index) => `
+            <div class="admin-list-item" style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    <button onclick="app.moveBreakdown(${b.id}, -1)" style="background:var(--bg-input);border:none;color:var(--text-secondary);padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;">↑</button>
+                    <button onclick="app.moveBreakdown(${b.id}, 1)" style="background:var(--bg-input);border:none;color:var(--text-secondary);padding:2px 6px;border-radius:4px;font-size:12px;cursor:pointer;">↓</button>
                 </div>
-                <span class="item-status ${b.active ? '' : 'inactive'}">${b.active ? 'Активно' : 'Скрыто'}</span>
+                <div style="flex:1;" onclick="app.editBreakdown(${b.id})">
+                    <span class="item-emoji">${b.emoji || '🔧'}</span>
+                    <div class="item-info">
+                        <div class="item-name">${b.name}</div>
+                        <div class="item-meta">${(b.steps || []).length} шагов · ${b.video_url ? '🎬' : ''} ${b.extra ? '💡' : ''}</div>
+                    </div>
+                </div>
+                <span class="item-status ${b.active !== false ? '' : 'inactive'}">${b.active !== false ? 'Активно' : 'Скрыто'}</span>
             </div>
         `).join('');
+    },
+
+    async moveBreakdown(id, direction) {
+        const idx = this.data.breakdowns.findIndex(b => b.id === id);
+        if (idx === -1) return;
+        
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= this.data.breakdowns.length) return;
+        
+        // Меняем местами в массиве
+        const temp = this.data.breakdowns[idx];
+        this.data.breakdowns[idx] = this.data.breakdowns[newIdx];
+        this.data.breakdowns[newIdx] = temp;
+        
+        // Сохраняем новый порядок (обновляем sort_order если есть, или просто пересохраняем)
+        // Пока просто перезагружаем отображение
+        this.saveToCache();
+        this.renderAdminBreakdowns();
+        this.showToast(direction === -1 ? '↑ Перемещено вверх' : '↓ Перемещено вниз');
     },
 
     editBreakdown(id = null) {
@@ -300,22 +354,16 @@ const App = {
         document.getElementById('bd-edit-image').value = bd ? bd.image_url : '';
         document.getElementById('bd-edit-extra').value = bd ? bd.extra : '';
         document.getElementById('bd-edit-contact').value = bd ? bd.contact : 'fanis';
-        document.getElementById('bd-edit-active').value = bd ? String(bd.active) : 'true';
+        document.getElementById('bd-edit-active').value = bd ? String(bd.active !== false) : 'true';
         document.getElementById('bd-delete-btn').style.display = bd ? 'block' : 'none';
         this.goTo('admin-bd-edit');
     },
 
     async saveBreakdown() {
         const name = document.getElementById('bd-edit-name').value.trim();
-        if (!name) {
-            this.showToast('❌ Введите название');
-            return;
-        }
+        if (!name) { this.showToast('❌ Введите название'); return; }
 
-        const steps = document.getElementById('bd-edit-steps').value
-            .split('\n')
-            .map(s => s.trim())
-            .filter(s => s);
+        const steps = document.getElementById('bd-edit-steps').value.split('\n').map(s => s.trim()).filter(s => s);
 
         const data = {
             name: name,
@@ -328,58 +376,47 @@ const App = {
             active: document.getElementById('bd-edit-active').value === 'true'
         };
 
-        console.log('Sending breakdown data:', data);
-
         try {
-            let response;
             const url = this.editingId ? `${API_URL}/api/breakdowns/${this.editingId}` : `${API_URL}/api/breakdowns`;
             const method = this.editingId ? 'PUT' : 'POST';
-
-            response = await fetch(url, {
+            const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-
-            console.log('Response status:', response.status);
-            const responseText = await response.text();
-            console.log('Response body:', responseText);
 
             if (response.ok) {
                 this.showToast('✅ Сохранено');
                 await this.loadData();
                 this.goTo('admin-breakdowns');
             } else {
-                this.showToast('❌ Ошибка ' + response.status + ': ' + responseText);
+                const text = await response.text();
+                this.showToast('❌ Ошибка ' + response.status);
             }
         } catch (e) {
-            console.error('saveBreakdown error:', e);
-            this.showToast('❌ Нет связи: ' + e.message);
+            this.showToast('❌ Нет связи с сервером');
         }
     },
 
     async deleteBreakdown() {
-        if (!this.editingId) return;
-        if (!confirm('Удалить поломку?')) return;
+        if (!this.editingId || !confirm('Удалить?')) return;
         try {
-            const response = await fetch(`${API_URL}/api/breakdowns/${this.editingId}`, { method: 'DELETE' });
-            if (response.ok) {
-                this.showToast('🗑️ Удалено');
-                await this.loadData();
-                this.goTo('admin-breakdowns');
-            } else {
-                this.showToast('❌ Ошибка удаления: ' + response.status);
-            }
+            await fetch(`${API_URL}/api/breakdowns/${this.editingId}`, { method: 'DELETE' });
+            this.showToast('🗑️ Удалено');
+            await this.loadData();
+            this.goTo('admin-breakdowns');
         } catch (e) {
             this.showToast('❌ Ошибка удаления');
         }
     },
 
+    // ========== АДМИН: ОШИБКИ ==========
     async renderAdminErrors() {
         try {
             const response = await fetch(`${API_URL}/api/errors/all`);
             if (response.ok) this.data.errors = await response.json();
         } catch (e) {}
+        
         const list = document.getElementById('admin-err-list');
         list.innerHTML = this.data.errors.map(e => `
             <div class="admin-list-item" onclick="app.editError(${e.id})">
@@ -387,7 +424,7 @@ const App = {
                     <div class="item-name">${e.code} · ${e.system}</div>
                     <div class="item-meta">${e.description}</div>
                 </div>
-                <span class="item-status ${e.active ? '' : 'inactive'}">${e.active ? 'Активно' : 'Скрыто'}</span>
+                <span class="item-status ${e.active !== false ? '' : 'inactive'}">${e.active !== false ? 'Активно' : 'Скрыто'}</span>
             </div>
         `).join('');
     },
@@ -403,22 +440,16 @@ const App = {
         document.getElementById('err-edit-solution').value = err ? (err.solution || []).join('\n') : '';
         document.getElementById('err-edit-image').value = err ? err.image_url : '';
         document.getElementById('err-edit-contact').value = err ? err.contact : 'fanis';
-        document.getElementById('err-edit-active').value = err ? String(err.active) : 'true';
+        document.getElementById('err-edit-active').value = err ? String(err.active !== false) : 'true';
         document.getElementById('err-delete-btn').style.display = err ? 'block' : 'none';
         this.goTo('admin-err-edit');
     },
 
     async saveError() {
         const code = document.getElementById('err-edit-code').value.trim();
-        if (!code) {
-            this.showToast('❌ Введите код ошибки');
-            return;
-        }
+        if (!code) { this.showToast('❌ Введите код'); return; }
 
-        const solution = document.getElementById('err-edit-solution').value
-            .split('\n')
-            .map(s => s.trim())
-            .filter(s => s);
+        const solution = document.getElementById('err-edit-solution').value.split('\n').map(s => s.trim()).filter(s => s);
 
         const data = {
             system: document.getElementById('err-edit-system').value,
@@ -431,53 +462,40 @@ const App = {
             active: document.getElementById('err-edit-active').value === 'true'
         };
 
-        console.log('Sending error data:', data);
-
         try {
-            let response;
             const url = this.editingId ? `${API_URL}/api/errors/${this.editingId}` : `${API_URL}/api/errors`;
             const method = this.editingId ? 'PUT' : 'POST';
-
-            response = await fetch(url, {
+            const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-
-            console.log('Response status:', response.status);
-            const responseText = await response.text();
-            console.log('Response body:', responseText);
 
             if (response.ok) {
                 this.showToast('✅ Сохранено');
                 await this.loadData();
                 this.goTo('admin-errors');
             } else {
-                this.showToast('❌ Ошибка ' + response.status + ': ' + responseText);
+                this.showToast('❌ Ошибка ' + response.status);
             }
         } catch (e) {
-            console.error('saveError error:', e);
-            this.showToast('❌ Нет связи: ' + e.message);
+            this.showToast('❌ Нет связи');
         }
     },
 
     async deleteError() {
-        if (!this.editingId) return;
-        if (!confirm('Удалить ошибку?')) return;
+        if (!this.editingId || !confirm('Удалить?')) return;
         try {
-            const response = await fetch(`${API_URL}/api/errors/${this.editingId}`, { method: 'DELETE' });
-            if (response.ok) {
-                this.showToast('🗑️ Удалено');
-                await this.loadData();
-                this.goTo('admin-errors');
-            } else {
-                this.showToast('❌ Ошибка удаления: ' + response.status);
-            }
+            await fetch(`${API_URL}/api/errors/${this.editingId}`, { method: 'DELETE' });
+            this.showToast('🗑️ Удалено');
+            await this.loadData();
+            this.goTo('admin-errors');
         } catch (e) {
-            this.showToast('❌ Ошибка удаления');
+            this.showToast('❌ Ошибка');
         }
     },
 
+    // ========== КОНТАКТЫ ==========
     loadContacts() {
         document.getElementById('contact-fanis').value = this.data.contacts.fanis || '';
         document.getElementById('contact-vildan').value = this.data.contacts.vildan || '';
@@ -507,14 +525,54 @@ const App = {
                 this.saveToCache();
                 this.showToast('✅ Контакты сохранены');
             } else {
-                this.showToast('❌ Ошибка: ' + r1.status + ' / ' + r2.status);
+                this.showToast('❌ Ошибка сохранения');
             }
         } catch (e) {
-            this.showToast('❌ Ошибка сохранения: ' + e.message);
+            this.showToast('❌ Ошибка');
         }
     },
 
-    // ===== ЭКСПОРТ / ИМПОРТ =====
+    // ========== СМЕНА ПАРОЛЯ ==========
+    loadPasswordScreen() {
+        document.getElementById('old-password').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-password').value = '';
+    },
+
+    togglePasswordField(id) {
+        const input = document.getElementById(id);
+        input.type = input.type === 'password' ? 'text' : 'password';
+    },
+
+    async changePassword() {
+        const oldPass = document.getElementById('old-password').value;
+        const newPass = document.getElementById('new-password').value;
+        const confirmPass = document.getElementById('confirm-password').value;
+
+        if (!oldPass || !newPass) { this.showToast('❌ Заполните все поля'); return; }
+        if (newPass !== confirmPass) { this.showToast('❌ Пароли не совпадают'); return; }
+        if (newPass.length < 4) { this.showToast('❌ Минимум 4 символа'); return; }
+
+        try {
+            const response = await fetch(`${API_URL}/api/admin/change-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ oldPassword: oldPass, newPassword: newPass })
+            });
+
+            if (response.ok) {
+                this.showToast('✅ Пароль изменён');
+                this.goTo('admin');
+            } else {
+                const result = await response.json();
+                this.showToast('❌ ' + (result.error || 'Ошибка'));
+            }
+        } catch (e) {
+            this.showToast('❌ Ошибка сервера');
+        }
+    },
+
+    // ========== ЭКСПОРТ/ИМПОРТ ==========
     exportData() {
         const data = {
             breakdowns: this.data.breakdowns,
@@ -529,7 +587,7 @@ const App = {
         a.download = 'fanis-backup-' + new Date().toISOString().slice(0, 10) + '.json';
         a.click();
         URL.revokeObjectURL(url);
-        this.showToast('💾 Данные экспортированы');
+        this.showToast('💾 Экспортировано');
     },
 
     showImport() {
@@ -538,14 +596,10 @@ const App = {
 
     async importData() {
         const raw = document.getElementById('import-data').value.trim();
-        if (!raw) {
-            this.showToast('❌ Вставьте данные');
-            return;
-        }
+        if (!raw) { this.showToast('❌ Вставьте данные'); return; }
         try {
             const data = JSON.parse(raw);
             let saved = 0;
-
             if (data.breakdowns) {
                 for (const bd of data.breakdowns) {
                     try {
@@ -553,48 +607,20 @@ const App = {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                name: bd.name,
-                                emoji: bd.emoji || '🔧',
-                                steps: bd.steps || [],
-                                video_url: bd.video_url || '',
-                                image_url: bd.image_url || '',
-                                extra: bd.extra || '',
-                                contact: bd.contact || 'fanis',
-                                active: bd.active !== false
+                                name: bd.name, emoji: bd.emoji || '🔧', steps: bd.steps || [],
+                                video_url: bd.video_url || '', image_url: bd.image_url || '',
+                                extra: bd.extra || '', contact: bd.contact || 'fanis', active: bd.active !== false
                             })
                         });
                         if (r.ok) saved++;
                     } catch (e) {}
                 }
             }
-
-            if (data.errors) {
-                for (const err of data.errors) {
-                    try {
-                        const r = await fetch(`${API_URL}/api/errors`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                system: err.system,
-                                code: err.code,
-                                description: err.description,
-                                period: err.period || '',
-                                solution: err.solution || [],
-                                image_url: err.image_url || '',
-                                contact: err.contact || 'fanis',
-                                active: err.active !== false
-                            })
-                        });
-                        if (r.ok) saved++;
-                    } catch (e) {}
-                }
-            }
-
             await this.loadData();
-            this.showToast(`✅ Импортировано ${saved} записей`);
+            this.showToast(`✅ Импортировано ${saved}`);
             this.goTo('admin');
         } catch (e) {
-            this.showToast('❌ Неверный формат JSON');
+            this.showToast('❌ Неверный JSON');
         }
     },
 

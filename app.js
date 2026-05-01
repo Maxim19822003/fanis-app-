@@ -1,5 +1,5 @@
 // ============================================
-// ФАНИС PWA v2.5 — ВСЕ ФИКСЫ
+// ФАНИС PWA v2.6 — ФИКС ЗАГРУЗКИ ОШИБОК
 // ============================================
 
 const API_URL = 'https://fanis-api.onrender.com';
@@ -23,6 +23,9 @@ const App = {
         try {
             const bdResponse = await fetch(`${API_URL}/api/breakdowns`);
             if (bdResponse.ok) this.data.breakdowns = await bdResponse.json();
+
+            const errResponse = await fetch(`${API_URL}/api/errors/all`);
+            if (errResponse.ok) this.data.errors = await errResponse.json();
 
             const contactsResponse = await fetch(`${API_URL}/api/contacts`);
             if (contactsResponse.ok) this.data.contacts = await contactsResponse.json();
@@ -59,7 +62,6 @@ const App = {
         
         if (screenId !== 'splash') this.history.push(screenId);
         
-        // Рендеры
         if (screenId === 'breakdowns') this.renderBreakdowns();
         if (screenId === 'systems') this.renderSystems();
         if (screenId === 'admin') this.updateAdminCounts();
@@ -81,11 +83,8 @@ const App = {
         let embedUrl = '';
 
         if (url.includes('rutube.ru')) {
-            // Обычное видео: rutube.ru/video/xxx/
             let match = url.match(/video\/([a-f0-9]+)/i);
-            // Shorts: rutube.ru/shorts/xxx/
             if (!match) match = url.match(/shorts\/([a-f0-9]+)/i);
-            // Плейлист с video: rutube.ru/play/embed/xxx
             if (!match) match = url.match(/\/([a-f0-9]{20,})/i);
             
             if (match) embedUrl = `https://rutube.ru/play/embed/${match[1]}`;
@@ -195,6 +194,7 @@ const App = {
             const response = await fetch(`${API_URL}/api/errors/${system}`);
             if (response.ok) {
                 const errors = await response.json();
+                this.data.errors = errors;
                 const grid = document.getElementById('errors-grid');
                 grid.innerHTML = errors.length === 0 
                     ? '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Нет ошибок</p>'
@@ -239,9 +239,8 @@ const App = {
         this.goTo('error-card');
     },
 
-    // ========== АДМИНКА (ФИКС: всегда работает) ==========
+    // ========== АДМИНКА ==========
     toggleAdmin() {
-        // Фикс: всегда показываем логин, если не админ
         if (!this.isAdmin) {
             this.goTo('admin-login');
         } else {
@@ -426,6 +425,11 @@ const App = {
         } catch (e) {}
         
         const list = document.getElementById('admin-err-list');
+        if (this.data.errors.length === 0) {
+            list.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Нет ошибок. Нажмите ➕</p>';
+            return;
+        }
+
         list.innerHTML = this.data.errors.map(e => `
             <div class="admin-list-item" onclick="app.editError(${e.id})">
                 <div class="item-info">

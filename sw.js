@@ -2,7 +2,6 @@ const CACHE_NAME = 'fanis-v1';
 const urlsToCache = [
     '/',
     '/index.html',
-    '/style.css',
     '/app.js',
     '/manifest.json'
 ];

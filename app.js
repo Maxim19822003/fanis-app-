@@ -2,7 +2,7 @@
 // ФАНИС PWA v2.8 — ФИКС АДМИНКИ (сброс isAdmin в goTo)
 // ============================================
 
-const API_URL = 'https://fanis-api.onrender.com';
+cconst API_URL = '';
 
 const App = {
     data: { breakdowns: [], errors: [], contacts: {} },

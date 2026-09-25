@@ -157,12 +157,14 @@ const App = {
         if (bd.image_url) html += `<div class="card-mem"><img src="${bd.image_url}" alt="мем" loading="lazy"></div>`;
         
         if (bd.video_url) {
-            html += `
-                <div class="card-video-thumb" onclick="app.playVideo('${bd.video_url.replace(/'/g, "\\'")}')">
-                    <span class="play-icon">▶️</span>
-                    <span class="video-label">▶️ Смотреть видео</span>
-                </div>
-            `;
+            const videos = bd.video_url.trim().split(/\s+/);
+            videos.forEach((v, i) => {
+                const label = videos.length > 1 ? '▶️ Смотреть видео ' + (i + 1) : '▶️ Смотреть видео';
+                html += '<div class="card-video-thumb" onclick="app.playVideo(\'' + v + '\')">'
+                    + '<span class="play-icon">▶️</span>'
+                    + '<span class="video-label">' + label + '</span>'
+                    + '</div>';
+            });
         }
 
         html += `
@@ -292,6 +294,7 @@ const App = {
             const result = await response.json();
             if (result.valid) {
                 this.isAdmin = true;
+                sessionStorage.setItem('fanis_admin_pw', pass);
                 document.getElementById('admin-password').value = '';
                 this.goTo('admin');
                 this.showToast('✅ Вход выполнен');
@@ -383,7 +386,53 @@ const App = {
         document.getElementById('bd-edit-contact').value = bd ? bd.contact : 'fanis';
         document.getElementById('bd-edit-active').value = bd ? String(bd.active !== false) : 'true';
         document.getElementById('bd-delete-btn').style.display = bd ? 'block' : 'none';
+
+        // Кнопка загрузки видео (создаётся один раз)
+        const videoField = document.getElementById('bd-edit-video');
+        if (videoField && !document.getElementById('bd-video-upload-btn')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'bd-video-upload-btn';
+            btn.className = 'btn btn-secondary';
+            btn.style.marginTop = '8px';
+            btn.textContent = '📤 Загрузить видео с устройства';
+            btn.onclick = () => document.getElementById('bd-video-file-input').click();
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.id = 'bd-video-file-input';
+            fileInput.accept = 'video/*';
+            fileInput.style.display = 'none';
+            fileInput.onchange = (e) => this.uploadVideo(e.target);
+            videoField.parentNode.insertBefore(fileInput, videoField.nextSibling);
+            videoField.parentNode.insertBefore(btn, videoField.nextSibling);
+        }
+
         this.goTo('admin-bd-edit');
+    },
+
+    async uploadVideo(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const password = sessionStorage.getItem('fanis_admin_pw') || '';
+        if (!password) { this.showToast('❌ Войди в админку заново'); return; }
+        this.showToast('⏳ Загрузка видео, подожди...');
+        try {
+            const fd = new FormData();
+            fd.append('password', password);
+            fd.append('video', file);
+            const response = await fetch(`${API_URL}/api/admin/upload-video`, { method: 'POST', body: fd });
+            const result = await response.json();
+            if (response.ok && result.path) {
+                const field = document.getElementById('bd-edit-video');
+                field.value = (field.value.trim() ? field.value.trim() + ' ' : '') + result.path;
+                this.showToast('✅ Видео загружено, ссылка добавлена в поле');
+            } else {
+                this.showToast('❌ ' + (result.error || 'Ошибка загрузки'));
+            }
+        } catch (e) {
+            this.showToast('❌ Ошибка сети при загрузке');
+        }
+        input.value = '';
     },
 
     async saveBreakdown() {

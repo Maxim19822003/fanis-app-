@@ -90,6 +90,12 @@ const App = {
         const container = document.getElementById('video-container');
         let embedUrl = '';
 
+        if (url.startsWith('/videos/')) {
+            container.innerHTML = <video src="${url}" controls autoplay playsinline style="width:100%;height:100%;"></video>;
+            document.getElementById('video-modal').classList.add('active');
+            return;
+        }
+        
         if (url.includes('rutube.ru')) {
             let match = url.match(/video\/([a-f0-9]+)/i);
             if (!match) match = url.match(/shorts\/([a-f0-9]+)/i);

@@ -91,7 +91,7 @@ const App = {
         let embedUrl = '';
 
         if (url.startsWith('/videos/')) {
-            container.innerHTML = <video src="${url}" controls autoplay playsinline style="width:100%;height:100%;"></video>;
+            container.innerHTML = '<video src="' + url + '" controls autoplay playsinline style="width:100%;height:100%;">';
             document.getElementById('video-modal').classList.add('active');
             return;
         }

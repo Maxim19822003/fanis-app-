@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fanis-v4';
+const CACHE_NAME = 'fanis-v5';
 const urlsToCache = [
     '/',
     '/index.html',

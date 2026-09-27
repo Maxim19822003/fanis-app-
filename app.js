@@ -1,5 +1,5 @@
 // ============================================
-// ФАНИС PWA v2.8 — ФИКС АДМИНКИ (сброс isAdmin в goTo)
+// ФАНИС PWA v2.9 — ВИДЕО: обложки, названия, удаление из админки
 // ============================================
 
 const API_URL = '';
@@ -13,6 +13,7 @@ const App = {
     history: [],
     isAdmin: false,
     editingId: null,
+    adminVideos: [],
 
     async init() {
         await this.loadData();
@@ -126,6 +127,28 @@ const App = {
         document.getElementById('video-container').innerHTML = '';
     },
 
+    // Парсит video_url (JSON-массив или legacy-строка через пробел) в массив {url, title, thumb}
+    parseVideos(videoUrl) {
+        if (!videoUrl) return [];
+        const s = String(videoUrl).trim();
+        if (s.startsWith('[')) {
+            try {
+                const arr = JSON.parse(s);
+                if (Array.isArray(arr)) {
+                    return arr
+                        .map(v => (typeof v === 'string' ? { url: v } : v))
+                        .map(v => ({ url: v.url || '', title: v.title || '', thumb: v.thumb || '' }))
+                        .filter(v => v.url);
+                }
+            } catch (e) {}
+        }
+        return s.split(/\s+/).filter(Boolean).map(url => ({ url: url, title: '', thumb: '' }));
+    },
+
+    escapeAttr(str) {
+        return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    },
+
     // ========== РЕНДЕРЫ ==========
     renderBreakdowns() {
         const grid = document.getElementById('breakdowns-grid');
@@ -156,15 +179,20 @@ const App = {
         let html = '';
         if (bd.image_url) html += `<div class="card-mem"><img src="${bd.image_url}" alt="мем" loading="lazy"></div>`;
         
-        if (bd.video_url) {
-            const videos = bd.video_url.trim().split(/\s+/);
+        const videos = this.parseVideos(bd.video_url);
+        if (videos.length) {
+            html += '<div class="card-videos-grid' + (videos.length === 1 ? ' single' : '') + '">';
             videos.forEach((v, i) => {
-                const label = videos.length > 1 ? '▶️ Смотреть видео ' + (i + 1) : '▶️ Смотреть видео';
-                html += '<div class="card-video-thumb" onclick="app.playVideo(\'' + v + '\')">'
+                const label = v.title || (videos.length > 1 ? 'Видео ' + (i + 1) : 'Смотреть видео');
+                const bg = v.thumb
+                    ? 'background-image:url(\'' + v.thumb + '\');background-size:cover;background-position:center;'
+                    : '';
+                html += '<div class="card-video-thumb" style="' + bg + '" onclick="app.playVideo(\'' + v.url + '\')">'
                     + '<span class="play-icon">▶️</span>'
                     + '<span class="video-label">' + label + '</span>'
                     + '</div>';
             });
+            html += '</div>';
         }
 
         html += `
@@ -387,27 +415,88 @@ const App = {
         document.getElementById('bd-edit-active').value = bd ? String(bd.active !== false) : 'true';
         document.getElementById('bd-delete-btn').style.display = bd ? 'block' : 'none';
 
-        // Кнопка загрузки видео (создаётся один раз)
+        // Кнопка загрузки видео + список видео (создаются один раз)
         const videoField = document.getElementById('bd-edit-video');
         if (videoField && !document.getElementById('bd-video-upload-btn')) {
+            videoField.type = 'hidden'; // хранит JSON-массив, пользователю не нужен
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.id = 'bd-video-upload-btn';
             btn.className = 'btn btn-secondary';
             btn.style.marginTop = '8px';
             btn.textContent = '📤 Загрузить видео с устройства';
-            btn.onclick = () => document.getElementById('bd-video-file-input').click();
+                        btn.onclick = () => document.getElementById('bd-video-file-input').click();
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
             fileInput.id = 'bd-video-file-input';
             fileInput.accept = 'video/*';
             fileInput.style.display = 'none';
             fileInput.onchange = (e) => this.uploadVideo(e.target);
+            const list = document.createElement('div');
+            list.id = 'bd-video-list';
+            list.style.marginTop = '8px';
+            videoField.parentNode.insertBefore(list, videoField.nextSibling);
             videoField.parentNode.insertBefore(fileInput, videoField.nextSibling);
             videoField.parentNode.insertBefore(btn, videoField.nextSibling);
         }
 
+        this.adminVideos = this.parseVideos(bd ? bd.video_url : '');
+        this.renderAdminVideoList();
+
         this.goTo('admin-bd-edit');
+    },
+
+    renderAdminVideoList() {
+        const list = document.getElementById('bd-video-list');
+        if (!list) return;
+        if (!this.adminVideos || this.adminVideos.length === 0) {
+            list.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin:4px 0 8px;">Видео пока нет.</p>';
+            return;
+        }
+        list.innerHTML = this.adminVideos.map((v, i) => `
+            <div style="display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid rgba(0,255,255,0.15);border-radius:8px;padding:8px;margin-bottom:8px;">
+                ${v.thumb
+                    ? '<img src="' + v.thumb + '" style="width:64px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;" onerror="this.style.visibility=\'hidden\'">'
+                    : '<div style="width:64px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(15,12,41,0.9);border-radius:4px;font-size:18px;">▶️</div>'}
+                <div style="flex:1;min-width:0;">
+                    <input type="text" value="${this.escapeAttr(v.title)}" placeholder="Название видео" oninput="app.adminVideos[${i}].title=this.value;app.syncVideoField();" style="width:100%;box-sizing:border-box;">
+                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${this.escapeAttr(v.url)}</div>
+                </div>
+                <button type="button" onclick="app.deleteAdminVideo(${i})" style="background:none;border:none;font-size:20px;cursor:pointer;flex-shrink:0;padding:4px;">🗑️</button>
+            </div>
+        `).join('');
+    },
+
+    syncVideoField() {
+        const f = document.getElementById('bd-edit-video');
+        if (f) f.value = JSON.stringify(this.adminVideos || []);
+    },
+
+    async deleteAdminVideo(index) {
+        const v = this.adminVideos && this.adminVideos[index];
+        if (!v) return;
+        if (!confirm('Удалить видео с сервера?\n' + v.url)) return;
+        const password = sessionStorage.getItem('fanis_admin_pw') || '';
+        if (!password) { this.showToast('❌ Войди в админку заново'); return; }
+        this.showToast('⏳ Удаляю...');
+        try {
+            const response = await fetch(`${API_URL}/api/admin/delete-video`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password, filePath: v.url })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                this.adminVideos.splice(index, 1);
+                this.syncVideoField();
+                this.renderAdminVideoList();
+                this.showToast('🗑️ Видео удалено с сервера');
+            } else {
+                this.showToast('❌ ' + (result.error || 'Ошибка удаления'));
+            }
+        } catch (e) {
+            this.showToast('❌ Ошибка сети при удалении');
+        }
     },
 
     async uploadVideo(input) {
@@ -423,9 +512,10 @@ const App = {
             const response = await fetch(`${API_URL}/api/admin/upload-video`, { method: 'POST', body: fd });
             const result = await response.json();
             if (response.ok && result.path) {
-                const field = document.getElementById('bd-edit-video');
-                field.value = (field.value.trim() ? field.value.trim() + ' ' : '') + result.path;
-                this.showToast('✅ Видео загружено, ссылка добавлена в поле');
+                this.adminVideos.push({ url: result.path, title: '', thumb: result.thumb || '' });
+                this.syncVideoField();
+                this.renderAdminVideoList();
+                this.showToast('✅ Видео загружено');
             } else {
                 this.showToast('❌ ' + (result.error || 'Ошибка загрузки'));
             }
@@ -438,6 +528,8 @@ const App = {
     async saveBreakdown() {
         const name = document.getElementById('bd-edit-name').value.trim();
         if (!name) { this.showToast('❌ Введите название'); return; }
+
+        this.syncVideoField();
 
         const steps = document.getElementById('bd-edit-steps').value.split('\n').map(s => s.trim()).filter(s => s);
 
